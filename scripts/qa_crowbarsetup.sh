@@ -5,6 +5,10 @@ test $(uname -m) = x86_64 || echo "ERROR: need 64bit"
 
 novacontroller=
 novadashboardserver=
+clusternodesdata=
+clusternodesnetwork=
+clusternodesservices=
+
 export cloud=${1}
 export nodenumber=${nodenumber:-2}
 export nodes=
@@ -243,6 +247,42 @@ function add_ha_repo()
     echo "Error: You requested a HA setup but for this combination ($cloudsource : $slesdist) no HA setup is available."
     exit 1
   fi
+}
+
+function cluster_node_assignment()
+{
+  L=`crowbar machines list | grep -v crowbar`
+
+  for mac in ${drbdnodemacs//+/ } ; do
+    # find and remove drbd nodes from L
+    for node in `printf "%s\n" $L` ; do
+      if crowbar machines show "$node" | grep "\"macaddress\"" | grep -qi $mac ; then
+        clusternodesdata="$clusternodesdata $node"
+      fi
+    done
+    for dnode in $clusternodesdata ; do
+      L=`printf "%s\n" $L | grep -iv $dnode`
+    done
+  done
+
+  # assign nodes to clusters
+  clusternodesnetwork=`printf  "%s\n" $L | head -n$nodenumbernetworkcluster`
+  clusternodesservices=`printf "%s\n" $L | tail -n$nodenumberservicescluster`
+
+  for n in $nodenumbernetworkcluster $nodenumberservicescluster ; do
+    L=`printf "%s\n" $L | grep -iv $n`
+  done
+  echo "............................................................"
+  echo "The cluster node assignment (for your information):"
+  echo "data cluster:"
+  printf "   %s\n" $clusternodesdata
+  echo "network cluster:"
+  printf "   %s\n" $clusternodesnetwork
+  echo "services cluster:"
+  printf "   %s\n" $clusternodesservices
+  echo "compute nodes (no cluster):"
+  printf "   %s\n" $L
+  echo "............................................................"
 }
 
 function prepareinstallcrowbar()
@@ -843,6 +883,36 @@ function enable_ssl_for_nova_dashboard()
   proposal_set_value nova_dashboard default "['attributes']['nova_dashboard']['ssl_no_verify']" true
 }
 
+function hacloud_configure_cluster_defaults()
+{
+  clustertype=$1
+  shift
+
+  for node in $@; do
+    proposal_set_value pacemaker $clustertype "['attributes']['pacemaker']['stonith']['per_node']['nodes']['$node']['params']" ""
+  done
+  nodes=`printf "\"%s\"," $@`
+  nodes="[ ${nodes%,} ]"
+  proposal_set_value pacemaker $clustertype "['deployment']['pacemaker']['elements']['pacemaker-cluster-member']" "$nodes"
+  proposal_increment_int pacemaker $clustertype "['deployment']['pacemaker']['crowbar-revision']" 1
+  proposal_set_value pacemaker $clustertype "['description']" "Pacemaker $clustertyp cluster"
+}
+
+function hacloud_configure_data_cluster()
+{
+  proposal_set_value pacemaker data "['attributes']['pacemaker']['drbd']['enabled']" true
+  hacloud_configure_cluster_defaults "data" $clusternodesdata
+}
+
+function hacloud_configure_network_cluster()
+{
+  hacloud_configure_cluster_defaults "network" $clusternodesnetwork
+}
+
+function hacloud_configure_services_cluster()
+{
+  hacloud_configure_cluster_defaults "services" $clusternodesservices
+}
 
 function custom_configuration()
 {
@@ -854,6 +924,19 @@ function custom_configuration()
     EDITOR='sed -i -e "s/debug\": false/debug\": true/" -e "s/verbose\": false/verbose\": true/"' $crowbaredit
   fi
   case $proposal in
+    pacemaker)
+      case $proposaltype in
+        data)
+          hacloud_configure_data_cluster
+        ;;
+        network)
+          hacloud_configure_network_cluster
+        ;;
+        services)
+          hacloud_configure_services_cluster
+        ;;
+      esac
+    ;;
     keystone)
       if [[ $all_with_ssl = 1 || $keystone_with_ssl = 1 ]] ; then
         enable_ssl_for_keystone
@@ -968,6 +1051,10 @@ function do_proposal()
 {
   waitnodes nodes
   proposals="database keystone rabbitmq ceph glance cinder $crowbar_networking nova nova_dashboard swift ceilometer heat"
+  if [ -n "$hacloud" ] ; then
+    proposals="pacemaker $proposals"
+    cluster_node_assignment
+  fi
 
   for proposal in $proposals ; do
     # proposal filter
@@ -985,6 +1072,11 @@ function do_proposal()
 
     # create proposal
     case $proposal in
+      pacemaker)
+        for cluster in data network services ; do
+          do_one_proposal "$proposal" "$cluster"
+        done
+      ;;
       *)
         do_one_proposal "$proposal" "default"
       ;;

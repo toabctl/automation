@@ -108,23 +108,23 @@ function intercept()
 
 function wait_for()
 {
-  local timecount=${1:-300}
-  local timesleep=${2:-1}
-  local condition=${3:-'/bin/true'}
-  local waitfor=${4:-'unknown process'}
-  local error_cmd=${5:-'exit 11'}
+  local timecount="${1:-300}"
+  local timesleep="${2:-1}"
+  local condition="${3:-'/bin/true'}"
+  local waitfor="${4:-'unknown process'}"
+  local error_cmd="${5:-'exit 11'}"
 
   echo "Waiting for: $waitfor"
-  local n=$timecount
-  while test $n -gt 0 && ! eval $condition
+  local n="$timecount"
+  while test $n -gt 0 && ! eval "$condition"
   do
     echo -n .
-    sleep $timesleep
+    sleep "$timesleep"
     n=$(($n - 1))
   done
   echo
 
-  if [ $n = 0 ] ; then
+  if [ "$n" = 0 ] ; then
     echo "Error: Waiting for '$waitfor' timed out."
     echo "This check was used: $condition"
     eval "$error_cmd"
@@ -150,7 +150,7 @@ function add_nfs_mount()
 
 function iscloudver()
 {
-        local v=$1
+        local v="$1"
         local bplus=""
         if [[ $v =~ plus ]] ; then
           v=${v%%plus}
@@ -598,7 +598,7 @@ EOF
 
 function do_installcrowbar()
 {
-  local instcmd=$1
+  local instcmd="$1"
   echo "Command to install chef: $instcmd"
   intercept "install-chef-suse.sh"
 
@@ -754,9 +754,9 @@ function do_waitcompute()
 function waitnodes()
 {
   local n=800
-  local mode=$1
-  local proposal=$2
-  local proposaltype=${3:-default}
+  local mode="$1"
+  local proposal="$2"
+  local proposaltype="${3:-default}"
   case "$mode" in
     nodes)
       echo -n "Waiting for nodes to get ready: "
@@ -894,7 +894,7 @@ function enable_ssl_for_nova_dashboard()
 
 function hacloud_configure_cluster_defaults()
 {
-  clustertype=$1
+  clustertype="$1"
   shift
 
   nodes=`printf "\"%s\"," $@`
@@ -927,8 +927,8 @@ function hacloud_configure_services_cluster()
 
 function custom_configuration()
 {
-  local proposal=$1
-  local proposaltype=${2:-default}
+  local proposal="$1"
+  local proposaltype="${2:-default}"
 
   local crowbaredit="crowbar $proposal proposal edit $proposaltype"
   if [[ $debug = 1 && $proposal != swift ]] ; then
@@ -936,7 +936,7 @@ function custom_configuration()
   fi
   case "$proposal" in
     pacemaker)
-      case $proposaltype in
+      case "$proposaltype" in
         data)
           hacloud_configure_data_cluster
         ;;
@@ -1038,8 +1038,8 @@ function set_proposalvars()
 
 function do_one_proposal()
 {
-  local proposal=$1
-  local proposaltype=${2:-default}
+  local proposal="$1"
+  local proposaltype="${2:-default}"
 
   crowbar "$proposal" proposal create $proposaltype
   # hook for changing proposals:

@@ -1041,6 +1041,8 @@ function do_one_proposal()
   local proposal="$1"
   local proposaltype="${2:-default}"
 
+  echo -n "Starting proposal $proposal($proposaltype) at: "
+  date
   crowbar "$proposal" proposal create $proposaltype
   # hook for changing proposals:
   custom_configuration $proposal $proposaltype
@@ -1050,6 +1052,8 @@ function do_one_proposal()
   waitnodes proposal $proposal $proposaltype
   local ret=$?
   echo "Proposal exit code: $ret"
+  echo -n "Finished proposal $proposal($proposaltype) at: "
+  date
   sleep 10
   if [ $ret != 0 ] ; then
     tail -n 90 /opt/dell/crowbar_framework/log/d*.log /var/log/crowbar/chef-client/d*.log

@@ -829,6 +829,11 @@ function manual_2device_ceph_proposal()
 }
 
 
+function get_proposal_filename()
+{
+  echo "/root/${1}.${2}.proposal"
+}
+
 # generic function to modify values in proposals
 #   Note: strings have to be quoted like this: "'string'"
 #         "true" resp. "false" or "['one', 'two']" act as ruby values, not as string
@@ -840,14 +845,13 @@ function proposal_modify_value()
   local value="$4"
   local operator="${5:-=}"
 
-  local pfile=/root/${proposal}.${proposaltype}.proposal
+  local pfile=`get_proposal_filename "${proposal}" "${proposaltype}"`
 
-  crowbar $proposal proposal show $proposaltype |
-    ruby -e "require 'rubygems';require 'json';
+  ruby -e "require 'rubygems';require 'json';
              j=JSON.parse(STDIN.read);
              j${variable}${operator}${value};
-             puts JSON.pretty_generate(j)" > $pfile
-  crowbar $proposal proposal --file=$pfile edit $proposaltype
+             puts JSON.pretty_generate(j)" < $pfile > ${pfile}.tmp
+  mv ${pfile}.tmp ${pfile}
 }
 
 # wrapper for proposal_modify_value
@@ -934,6 +938,11 @@ function custom_configuration()
   if [[ $debug = 1 && $proposal != swift ]] ; then
     EDITOR='sed -i -e "s/debug\": false/debug\": true/" -e "s/verbose\": false/verbose\": true/"' $crowbaredit
   fi
+
+  # prepare the file to be edited, it will be read once at the end
+  local pfile=`get_proposal_filename "${proposal}" "${proposaltype}"`
+  crowbar $proposal proposal show $proposaltype > $pfile
+
   case "$proposal" in
     pacemaker)
       case "$proposaltype" in
@@ -967,7 +976,6 @@ function custom_configuration()
       # custom nova config of libvirt
       [ -n "$libvirt_type" ] || libvirt_type='kvm';
       proposal_set_value nova default "['attributes']['nova']['libvirt_type']" "'$libvirt_type'"
-#      EDITOR="sed -i -e 's/nova-multi-compute-$libvirt_type/nova-multi-compute-xxx/g; s/nova-multi-compute-qemu/nova-multi-compute-$libvirt_type/g; s/nova-multi-compute-xxx/nova-multi-compute-qemu/g'" $crowbaredit
 
       if [[ $all_with_ssl = 1 || $nova_with_ssl = 1 ]] ; then
         enable_ssl_for_nova
@@ -1005,6 +1013,8 @@ function custom_configuration()
     *) echo "No hooks defined for service: $proposal"
     ;;
   esac
+
+  crowbar $proposal proposal --file=$pfile edit $proposaltype
 }
 
 function get_crowbarnodes()

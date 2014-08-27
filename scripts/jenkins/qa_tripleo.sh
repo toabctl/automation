@@ -31,8 +31,8 @@ function install_packages()
     $zypper in kvm libvirt-daemon-driver-network libvirt
 
     # workaround kvm packaging bug
-    sudo /sbin/udevadm control --reload-rules  || :
-    sudo /sbin/udevadm trigger || :
+    udevadm control --reload-rules  || :
+    udevadm trigger || :
     # worarkound libvirt packaging bug
     systemctl start libvirtd
     usermod -a -G libvirt root

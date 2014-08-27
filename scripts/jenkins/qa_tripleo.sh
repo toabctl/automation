@@ -3,7 +3,7 @@
 set -eux
 
 STACK_DIR=${STACK_DIR:-/opt/stack/new}
-export PATH=$PATH:$STACK_DIR/tripleo-incubator/scripts/:$STACK_DIR/dib-utils/bin/
+export PATH=$PATH:$STACK_DIR/tripleo-incubator/scripts/:$STACK_DIR/dib-utils/bin/:$STACK_DIR/diskimage-builder/bin
 
 zypper="zypper --non-interactive"
 
@@ -57,22 +57,33 @@ function install_git_clones()
     fi
 }
 
+function setup_package_usage()
+{
+    # Use diskimage-builder from packages
+    if [ ! -d $STACK_DIR/diskimage-builder ]; then
+        mkdir -p $STACK_DIR/diskimage-builder
+        ln -s /usr/bin $STACK_DIR/diskimage-builder/bin
+        ln -s /usr/share/diskimage-builder/elements $STACK_DIR/diskimage-builder/elements
+        ln -s /usr/share/diskimage-builder/lib $STACK_DIR/diskimage-builder/lib
+    fi
+    # Use tripleo-image-elements from packages
+    if [ ! -d $STACK_DIR/tripleo-image-elements ]; then
+        mkdir -p $STACK_DIR/tripleo-image-elements
+        ln -s /usr/bin $STACK_DIR/tripleo-image-elements/bin
+        ln -s /usr/share/tripleo-image-elements $STACK_DIR/tripleo-image-elements/elements
+    fi
+    # Use tripleo-heat-templates from packages
+    if [ ! -d $STACK_DIR/tripleo-heat-templates ]; then
+        # FIXME use the package here!
+        git clone git://git.openstack.org/openstack/tripleo-heat-templates $STACK_DIR/tripleo-heat-templates
+    fi
+    # Use dib-utils from packages
+    if [ ! -d $STACK_DIR/dib-utils ]; then
+        # FIXME use the package here!
+        git clone git://git.openstack.org/openstack/dib-utils $STACK_DIR/dib-utils
+    fi
 
-setup_package_repositories
-mkdir -p $STACK_DIR
-install_packages
-install_git_clones
-
-## setup some useful defaults
-export NODE_ARCH=amd64
-export TE_DATAFILE=$STACK_DIR/testenv.json
-
-# temporary hacks delete me
-export NODE_DIST="opensuse"
-
-use_package=1
-
-if [ "$use_package" = "1" ]; then
+    # export some vars for diskimage-builder
     export DIB_REPOTYPE_python_ceilometerclient=package
     export DIB_REPOTYPE_python_cinderclient=package
     export DIB_REPOTYPE_python_glanceclient=package
@@ -91,7 +102,20 @@ if [ "$use_package" = "1" ]; then
     export DIB_REPOTYPE_nova=package
     export DIB_REPOTYPE_nova_baremetal=package
     export DIB_REPOTYPE_swift=package
-fi
+}
+
+setup_package_repositories
+mkdir -p $STACK_DIR
+install_packages
+install_git_clones
+setup_package_usage
+
+## setup some useful defaults
+export NODE_ARCH=amd64
+export TE_DATAFILE=$STACK_DIR/testenv.json
+
+# temporary hacks delete me
+export NODE_DIST="opensuse"
 
 export DIB_COMMON_ELEMENTS=${DIB_COMMON_ELEMENTS:-"stackuser"}
 
@@ -145,29 +169,6 @@ fi
 
 if [ -t 0 ]; then
     export break=after-error
-fi
-
-# Use diskimage-builder from packages
-
-if [ ! -d $STACK_DIR/diskimage-builder ]; then
-    mkdir -p $STACK_DIR/diskimage-builder
-    ln -s /usr/bin $STACK_DIR/diskimage-builder/bin
-    ln -s /usr/share/diskimage-builder/elements $STACK_DIR/diskimage-builder/elements
-    ln -s /usr/share/diskimage-builder/lib $STACK_DIR/diskimage-builder/lib
-fi
-
-# Use tripleo-image-elements from packages
-
-if [ ! -d $STACK_DIR/tripleo-image-elements ]; then
-    mkdir -p $STACK_DIR/tripleo-image-elements
-    ln -s /usr/bin $STACK_DIR/tripleo-image-elements/bin
-    ln -s /usr/share/tripleo-image-elements $STACK_DIR/tripleo-image-elements/elements
-fi
-
-# Use tripleo-heat-templates from packages
-
-if [ ! -d $STACK_DIR/tripleo-heat-templates ]; then
-    git clone git://git.openstack.org/openstack/tripleo-heat-templates $STACK_DIR/tripleo-heat-templates
 fi
 
 cd tripleo-ci

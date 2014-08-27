@@ -77,9 +77,6 @@ if [ "$use_package" = "1" ]; then
 fi
 
 export DIB_COMMON_ELEMENTS=${DIB_COMMON_ELEMENTS:-"stackuser"}
-export LIBVIRT_NIC_DRIVER=virtio
-
-
 
 virsh net-define /usr/share/libvirt/networks/default.xml || :
 

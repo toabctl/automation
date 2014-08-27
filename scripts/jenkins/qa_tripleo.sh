@@ -3,6 +3,8 @@
 set -eux
 
 STACK_DIR=${STACK_DIR:-/opt/stack/new}
+export PATH=$PATH:$STACK_DIR/tripleo-incubator/scripts/:$STACK_DIR/dib-utils/bin/
+
 
 zypper="zypper --non-interactive"
 

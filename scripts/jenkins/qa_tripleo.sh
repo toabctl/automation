@@ -2,32 +2,53 @@
 
 set -eux
 
-# setup repos
-VERSION=11
-REPO=SLE_11_SP3
-if grep "^VERSION = 1[2-4]\\.[0-5]" /etc/SuSE-release ; then
-    VERSION=$(awk -e '/^VERSION = 1[2-4]\./{print $3}' /etc/SuSE-release)
-    REPO=openSUSE_$VERSION
-fi
-hostname=dist.suse.de
 zypper="zypper --non-interactive"
 
-zypper rr cloudhead || :
+function setup_package_repositories()
+{
+    # setup repos
+    local VERSION=11
+    local REPO=SLE_11_SP3
+    if grep "^VERSION = 1[2-4]\\.[0-5]" /etc/SuSE-release ; then
+        VERSION=$(awk -e '/^VERSION = 1[2-4]\./{print $3}' /etc/SuSE-release)
+        REPO=openSUSE_$VERSION
+    fi
 
-$zypper ar -G -f http://download.opensuse.org/repositories/Cloud:/OpenStack:/Master/$REPO/ cloud || :
-# no staging for master
-$zypper mr --priority 22 cloud
+    zypper rr cloudhead || :
 
-$zypper in make patch python-PyYAML git-core busybox
-$zypper in python-os-apply-config
-$zypper in diskimage-builder tripleo-image-elements tripleo-heat-templates
+    $zypper ar -G -f http://download.opensuse.org/repositories/Cloud:/OpenStack:/Master/$REPO/ cloud || :
+    # no staging for master
+    $zypper mr --priority 22 cloud
+
+    $zypper -n --gpg-auto-import-keys ref
+}
+
+function install_packages()
+{
+    $zypper in make patch python-PyYAML git-core busybox
+    $zypper in python-os-apply-config
+    $zypper in diskimage-builder tripleo-image-elements tripleo-heat-templates
+    $zypper in kvm libvirt-daemon-driver-network libvirt
+
+    # workaround kvm packaging bug
+    sudo /sbin/udevadm control --reload-rules  || :
+    sudo /sbin/udevadm trigger || :
+    # worarkound libvirt packaging bug
+    systemctl start libvirtd
+    usermod -a -G libvirt root
+    sleep 2
+}
+
+
+setup_package_repositories
+install_packages
+
 
 ## setup some useful defaults
 export NODE_ARCH=amd64
 export TE_DATAFILE=/opt/stack/new/testenv.json
 
 # temporary hacks delete me
-$zypper -n --gpg-auto-import-keys ref
 export NODE_DIST="opensuse"
 
 use_package=1
@@ -56,18 +77,7 @@ fi
 export DIB_COMMON_ELEMENTS=${DIB_COMMON_ELEMENTS:-"stackuser"}
 export LIBVIRT_NIC_DRIVER=virtio
 
-# workaround kvm packaging bug
-$zypper in kvm
-sudo /sbin/udevadm control --reload-rules  || :
-sudo /sbin/udevadm trigger || :
 
-# worarkound libvirt packaging bug
-$zypper in libvirt-daemon-driver-network
-$zypper in libvirt
-systemctl start libvirtd
-usermod -a -G libvirt root
-
-sleep 2
 
 virsh net-define /usr/share/libvirt/networks/default.xml || :
 

@@ -2,6 +2,8 @@
 
 set -eux
 
+STACK_DIR=${STACK_DIR:-/opt/stack/new}
+
 zypper="zypper --non-interactive"
 
 function setup_package_repositories()
@@ -46,7 +48,7 @@ install_packages
 
 ## setup some useful defaults
 export NODE_ARCH=amd64
-export TE_DATAFILE=/opt/stack/new/testenv.json
+export TE_DATAFILE=$STACK_DIR/testenv.json
 
 # temporary hacks delete me
 export NODE_DIST="opensuse"
@@ -81,22 +83,22 @@ export LIBVIRT_NIC_DRIVER=virtio
 
 virsh net-define /usr/share/libvirt/networks/default.xml || :
 
-mkdir -p /opt/stack/new/
+mkdir -p $STACK_DIR
 
-if [ ! -d /opt/stack/new/tripleo-incubator ]; then
+if [ ! -d $STACK_DIR/tripleo-incubator ]; then
     (
-        cd /opt/stack/new/
+        cd $STACK_DIR/
         git clone git://git.openstack.org/openstack/tripleo-incubator
     )
 fi
 
 
-if [ ! -f /opt/stack/new/testenv.json ]; then
+if [ ! -f $STACK_DIR/testenv.json ]; then
 
     # This should be part of the devtest scripts imho, but
     # currently isn't.
     (
-        export PATH=$PATH:/opt/stack/new/tripleo-incubator/scripts/
+        export PATH=$PATH:$STACK_DIR/tripleo-incubator/scripts/
 
         install-dependencies
 
@@ -117,7 +119,7 @@ if [ ! -f /opt/stack/new/testenv.json ]; then
     if [ ! -f ~/.ssh/id_rsa ]; then
         ssh-keygen -f ~/.ssh/id_rsa -P ''
     fi
-    cat - > /opt/stack/new/testenv.json <<EOF
+    cat - > $STACK_DIR/testenv.json <<EOF
     {
         "host-ip": "192.168.122.1",
         "seed-ip": "192.0.2.1",
@@ -149,25 +151,25 @@ fi
 
 # Use diskimage-builder from packages
 
-if [ ! -d /opt/stack/new/diskimage-builder ]; then
-    mkdir -p /opt/stack/new/diskimage-builder
-    ln -s /usr/bin /opt/stack/new/diskimage-builder/bin
-    ln -s /usr/share/diskimage-builder/elements /opt/stack/new/diskimage-builder/elements
-    ln -s /usr/share/diskimage-builder/lib /opt/stack/new/diskimage-builder/lib
+if [ ! -d $STACK_DIR/diskimage-builder ]; then
+    mkdir -p $STACK_DIR/diskimage-builder
+    ln -s /usr/bin $STACK_DIR/diskimage-builder/bin
+    ln -s /usr/share/diskimage-builder/elements $STACK_DIR/diskimage-builder/elements
+    ln -s /usr/share/diskimage-builder/lib $STACK_DIR/diskimage-builder/lib
 fi
 
 # Use tripleo-image-elements from packages
 
-if [ ! -d /opt/stack/new/tripleo-image-elements ]; then
-    mkdir -p /opt/stack/new/tripleo-image-elements
-    ln -s /usr/bin /opt/stack/new/tripleo-image-elements/bin
-    ln -s /usr/share/tripleo-image-elements /opt/stack/new/tripleo-image-elements/elements
+if [ ! -d $STACK_DIR/tripleo-image-elements ]; then
+    mkdir -p $STACK_DIR/tripleo-image-elements
+    ln -s /usr/bin $STACK_DIR/tripleo-image-elements/bin
+    ln -s /usr/share/tripleo-image-elements $STACK_DIR/tripleo-image-elements/elements
 fi
 
 # Use tripleo-heat-templates from packages
 
-if [ ! -d /opt/stack/new/tripleo-heat-templates ]; then
-    git clone git://git.openstack.org/openstack/tripleo-heat-templates /opt/stack/new/tripleo-heat-templates
+if [ ! -d $STACK_DIR/tripleo-heat-templates ]; then
+    git clone git://git.openstack.org/openstack/tripleo-heat-templates $STACK_DIR/tripleo-heat-templates
 fi
 
 cd tripleo-ci

@@ -5,7 +5,6 @@ set -eux
 STACK_DIR=${STACK_DIR:-/opt/stack/new}
 export PATH=$PATH:$STACK_DIR/tripleo-incubator/scripts/:$STACK_DIR/dib-utils/bin/
 
-
 zypper="zypper --non-interactive"
 
 function setup_package_repositories()
@@ -43,10 +42,26 @@ function install_packages()
     sleep 2
 }
 
+function install_git_clones()
+{
+    if [ ! -d $STACK_DIR/tripleo-incubator ]; then
+        pushd $STACK_DIR
+        git clone git://git.openstack.org/openstack/tripleo-incubator
+        popd
+    fi
+
+    if [ ! -d $STACK_DIR/tripleo-ci ]; then
+        pushd $STACK_DIR/
+        git clone git://git.openstack.org/openstack-infra/tripleo-ci
+        popd
+    fi
+}
+
 
 setup_package_repositories
+mkdir -p $STACK_DIR
 install_packages
-
+install_git_clones
 
 ## setup some useful defaults
 export NODE_ARCH=amd64
@@ -81,16 +96,6 @@ fi
 export DIB_COMMON_ELEMENTS=${DIB_COMMON_ELEMENTS:-"stackuser"}
 
 virsh net-define /usr/share/libvirt/networks/default.xml || :
-
-mkdir -p $STACK_DIR
-
-if [ ! -d $STACK_DIR/tripleo-incubator ]; then
-    (
-        cd $STACK_DIR/
-        git clone git://git.openstack.org/openstack/tripleo-incubator
-    )
-fi
-
 
 if [ ! -f $STACK_DIR/testenv.json ]; then
 
@@ -140,12 +145,6 @@ fi
 
 if [ -t 0 ]; then
     export break=after-error
-fi
-
-# Use tripleo-ci from git
-
-if [ ! -d tripleo-ci ]; then
-    git clone git://git.openstack.org/openstack-infra/tripleo-ci
 fi
 
 # Use diskimage-builder from packages

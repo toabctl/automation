@@ -510,12 +510,12 @@ function h_set_source_variables()
         develcloud5)
             CLOUDDISTPATH=/ibs/Devel:/Cloud:/5/images/iso
             [ -n "$TESTHEAD" ] && CLOUDDISTPATH=/ibs/Devel:/Cloud:/5:/Staging/images/iso
-            CLOUDDISTISO="S*-CLOUD*Media1.iso"
+            CLOUDDISTISO="SUSE*-CLOUD*Media1.iso"
             CLOUDLOCALREPOS="SUSE-Cloud-5-devel"
         ;;
         susecloud5)
             CLOUDDISTPATH=/ibs/SUSE:/SLE-11-SP3:/Update:/Cloud5:/Test/images/iso
-            CLOUDDISTISO="S*-CLOUD*Media1.iso"
+            CLOUDDISTISO="SUSE*-CLOUD*Media1.iso"
             CLOUDLOCALREPOS="SUSE-Cloud-5-official"
         ;;
         GM3|GM3+up)

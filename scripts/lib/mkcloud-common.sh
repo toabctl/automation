@@ -236,7 +236,7 @@ function nodes
     local query=${1:number}
     local type=${2:all}
     local start_id=1
-    local end_id=$(($nodenumber + $nodenumberlonelynode + $nodenumberironicnode))
+    local end_id=$(($nodenumber + $nodenumberlonelynode + $nodenumberironicnode + $nodenumbercephnode))
     case $type in
         normal|pxe)
             end_id=$nodenumber
@@ -246,6 +246,9 @@ function nodes
         ;;
         ironic)
             start_id=$(($nodenumber + $nodenumberlonelynode + 1))
+        ;;
+        ceph)
+            start_id=$(($nodenumber + $nodenumberlonelynode + $nodenumberironicnode + 1))
         ;;
         all)
         ;;
@@ -598,6 +601,12 @@ function get_lonely_node_dist
     echo $dist
 }
 
+function get_ceph_node_dist
+{
+    local dist=$(get_admin_node_dist)
+    echo $dist
+}
+
 function dist_to_image_name
 {
     # get the name of the image to deploy the admin node
@@ -727,6 +736,7 @@ fi
 : ${nodenumbertotal:=$nodenumber}
 : ${nodenumberlonelynode:=0}
 : ${nodenumberironicnode:=0}
+: ${nodenumbercephnode:=0}
 : ${want_mtu_size:=1500}
 # proposals:
 : ${want_designate_proposal:=0}

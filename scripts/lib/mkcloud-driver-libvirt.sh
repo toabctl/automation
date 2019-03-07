@@ -503,6 +503,47 @@ function libvirt_do_setupironicnodes()
     done
 }
 
+function libvirt_do_setupcephnodes()
+{
+    local i
+    for i in $(nodes ids ceph) ; do
+        local mac=$(macfunc $i)
+        local ceph_node
+        ceph_node=$cloud-node$i
+        safely ${scripts_lib_dir}/libvirt/compute-config $cloud $i \
+               --macaddress $mac \
+               --cephvolumenumber "$cephvolumenumber" \
+               --drbdserial "$drbdvolume" \
+               --computenodememory $compute_node_memory\
+               --controllernodememory $controller_node_memory \
+               --libvirttype $libvirt_type \
+               --vcpus $vcpus \
+               --emulator $(get_emulator) \
+               --vdiskdir $vdisk_dir \
+               --bootorder 1 \
+               --numcontrollers 1 \
+               --firmwaretype "$firmware_type" > /tmp/$ceph_node.xml
+
+        local ceph_disk
+        ceph_disk="$vdisk_dir/${cloud}.node$i"
+
+        $sudo lvdisplay "$ceph_disk" || \
+            _lvcreate "${cloud}.node$i" "${cephnode_hdd_size}" "$cloudvg"
+
+        local j
+        local ceph_data_disk
+        for j in $(seq $cephvolumenumber); do
+            ceph_data_disk="${ceph_disk}-ceph$j"
+            $sudo lvdisplay "$ceph_data_disk" || \
+                _lvcreate "${cloud}.node$i-ceph$j" "${cephvolume_hdd_size}" "$cloudvg"
+            # make sure the drive is Zapped and ready for use
+            sudo sgdisk -Z $ceph_data_disk
+        done
+
+        onhost_deploy_image "ceph" $(get_ceph_node_dist) $ceph_disk
+        safely libvirt_vm_start /tmp/${ceph_node}.xml
+    done
+}
 
 function libvirt_do_shutdowncloud()
 {

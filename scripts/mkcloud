@@ -107,10 +107,11 @@ iscloudver 7plus && : ${controller_node_memory:=12582912}
     adminnode_hdd_size=$(max $adminnode_hdd_size 20)
 : ${controller_hdd_size:=20}
 : ${computenode_hdd_size:=20}
-: ${cephvolume_hdd_size:=21}
 : ${controller_ceph_hdd_size:=25}
 : ${lonelynode_hdd_size:=20}
 : ${ironicnode_hdd_size:=20}
+: ${cephnode_hdd_size:=20}
+: ${cephvolume_hdd_size:=21}
 
 if [[ $hacloud = 1 ]] && ( [[ "$want_database_sql_engine" == "postgresql" ]] || iscloudver 6minus ) ; then
     : ${drbd_hdd_size:=15}
@@ -358,7 +359,7 @@ function sshrun
         export upgrade_progress_file=$upgrade_progress_file;
 EOF
     # setting these variables within mkcloud does not make them part of the env, so we need to export them
-    export nodenumber nodenumberlonelynode nodenumberironicnode clusterconfig ironicnetmask
+    export nodenumber nodenumberlonelynode nodenumberironicnode nodenumbercephnode clusterconfig ironicnetmask
     env|grep -e ^debug_ -e ^pre_ -e ^vlan_ -e ^want_ -e ^net_ -e ^nodenumber -e ^clusterconfig -e ^ironicnetmask | sort >> $mkcconf
 
     cp -a $mkcconf $artifacts_dir/
@@ -590,6 +591,17 @@ function setupironicnodes
     fi
 
     ${mkclouddriver}_do_setupironicnodes
+}
+
+# bring up ceph nodes in the ceph network
+function setupcephnodes
+{
+    if [[ $(nodes number ceph) -lt 1 ]] ; then
+        complain 80 "Please set nodenumbercephnode."
+        return
+    fi
+
+    ${mkclouddriver}_do_setupcephnodes
 }
 
 # register lonely_node against crowbar
@@ -1116,6 +1128,7 @@ Steps:
     batch:          build proposals from exported crowbar_batch YAML file
     setuplonelynodes: boot a number (defined by nodenumberlonelynode) of non-crowbar registered nodes in the admin network
     setupironicnodes: boot a number of empty nodes to be used by the ironic service
+    setupcephnodes: boot a number of empty nodes to be used by the external ceph cluster
     crowbar_register: register a number (defined by nodenumberlonelynode) of non-crowbar nodes with crowbar (setuplonelynodes needs to have run before)
     deployexternalceph: Deploy an external SES cluster on a number of crowbar nodes (defined by nodenumberlonelynode),
                     this step assumes that both setuplonelynodes and crowbar_register have been run first.
@@ -1220,6 +1233,8 @@ Optional
         set the number of non-crowbar registered nodes to be created in the admin network
     nodenumberironicnode=2    (default 0)
         set the number of empty nodes to be used by the ironic service
+    nodenumbercephnode=1    (default 0)
+        set the number of empty nodes to be used by the external Ceph cluster
     vcpus=1         (default $vcpus)
         set the number of CPU cores per compute node
     nics=1         (default $nics)
@@ -1495,7 +1510,7 @@ allcmds="$step_aliases _test_setuphost \
     crowbarbackup crowbarrestore shutdowncloud restartcloud qa_test help \
     rebootneutron cloudupgrade \
     setuplonelynodes crowbar_register createadminsnapshot \
-    lonelynode_nfs_server setupironicnodes\
+    lonelynode_nfs_server setupironicnodes setupcephnodes \
     restoreadminfromsnapshot createcloudsnapshot restorecloudfromsnapshot \
     cct steps batch setup_aliases onadmin onhost devsetup plain_with_upgrade_test \
     testpreupgrade testpostupgrade deployexternalceph"
